@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>絵文字コンビ意味クイズ</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: 'Hiragino Sans', 'Meiryo', sans-serif; }
+  .emoji-display { font-size: 3rem; letter-spacing: 0.1em; }
+  .tab-active { border-bottom: 3px solid #6366f1; color: #6366f1; font-weight: 700; }
+  .fade-in { animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+  .correct-flash { animation: correctFlash 0.5s ease; }
+  @keyframes correctFlash { 0%{background:#dcfce7;} 100%{background:white;} }
+  .wrong-flash { animation: wrongFlash 0.5s ease; }
+  @keyframes wrongFlash { 0%{background:#fee2e2;} 100%{background:white;} }
+</style>
+</head>
+<body class="bg-gradient-to-br from-yellow-50 to-orange-50 min-h-screen p-4">
+<div class="max-w-lg mx-auto">
+  <h1 class="text-2xl font-bold text-center text-orange-700 mb-1">絵文字コンビ意味クイズ 🎯</h1>
+  <p class="text-center text-sm text-gray-500 mb-4">絵文字の組み合わせが表すフレーズを答えよう！</p>
+
+  <!-- Tabs -->
+  <div class="flex border-b border-gray-200 mb-4">
+    <button onclick="showTab('quiz')" id="tab-quiz" class="tab-active px-4 py-2 text-sm flex-1">🎮 クイズ</button>
+    <button onclick="showTab('create')" id="tab-create" class="px-4 py-2 text-sm flex-1 text-gray-500">✏️ 作問モード</button>
+    <button onclick="showTab('score')" id="tab-score" class="px-4 py-2 text-sm flex-1 text-gray-500">📊 スコア</button>
+  </div>
+
+  <!-- QUIZ TAB -->
+  <div id="pane-quiz" class="fade-in">
+    <!-- Difficulty selector -->
+    <div class="flex gap-2 justify-center mb-4">
+      <button onclick="setDifficulty('easy')" id="diff-easy" class="px-3 py-1 rounded-full text-xs bg-green-500 text-white">初級</button>
+      <button onclick="setDifficulty('medium')" id="diff-medium" class="px-3 py-1 rounded-full text-xs bg-yellow-500 text-white">中級</button>
+      <button onclick="setDifficulty('hard')" id="diff-hard" class="px-3 py-1 rounded-full text-xs bg-red-500 text-white">上級</button>
+      <button onclick="setDifficulty('all')" id="diff-all" class="px-3 py-1 rounded-full text-xs bg-indigo-600 text-white ring-2 ring-indigo-400">全問</button>
+    </div>
+
+    <div id="quiz-card" class="bg-white rounded-2xl shadow-lg p-6 text-center">
+      <div id="quiz-num" class="text-xs text-gray-400 mb-2">問題 1 / ?</div>
+      <div id="quiz-difficulty-badge" class="inline-block px-2 py-0.5 rounded-full text-xs mb-3 bg-gray-100 text-gray-500"></div>
+      <div id="quiz-emojis" class="emoji-display mb-4">🌊🏄</div>
+      <div id="quiz-hint-area" class="text-sm text-blue-500 mb-2 h-5"></div>
+      <input type="text" id="quiz-input" placeholder="日本語で答えを入力…" maxlength="20"
+        class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-center text-lg focus:outline-none focus:border-indigo-400 mb-3"
+        onkeydown="if(event.key==='Enter') submitAnswer()">
+      <div class="flex gap-2 justify-center mb-3">
+        <button onclick="showHint()" class="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200">💡 ヒント</button>
+        <button onclick="submitAnswer()" class="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">答える</button>
+        <button onclick="skipQuestion()" class="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200">スキップ</button>
+      </div>
+      <div id="quiz-feedback" class="text-sm font-semibold h-6"></div>
+    </div>
+
+    <div class="mt-3 flex justify-between text-sm text-gray-600 bg-white rounded-xl shadow px-4 py-2">
+      <span>✅ 正解: <strong id="score-correct">0</strong></span>
+      <span>❌ 不正解: <strong id="score-wrong">0</strong></span>
+      <span>⏭ スキップ: <strong id="score-skip">0</strong></span>
+    </div>
+
+    <div class="mt-3 text-center">
+      <button onclick="startQuiz()" class="px-5 py-2 bg-orange-500 text-white rounded-lg text-sm font-semibold hover:bg-orange-600">🔄 クイズをリスタート</button>
+    </div>
+  </div>
+
+  <!-- CREATE TAB -->
+  <div id="pane-create" class="hidden fade-in">
+    <div class="bg-white rounded-2xl shadow-lg p-5">
+      <h2 class="font-bold text-gray-700 mb-3">オリジナル問題を作成</h2>
+      <label class="block text-sm text-gray-600 mb-1">絵文字の組み合わせ（2〜3個）</label>
+      <input type="text" id="create-emojis" placeholder="例: 🍎📚" maxlength="10"
+        class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-2xl mb-3 focus:outline-none focus:border-indigo-400">
+      <label class="block text-sm text-gray-600 mb-1">答え（日本語）</label>
+      <input type="text" id="create-answer" placeholder="例: 勉強" maxlength="30"
+        class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 mb-3 focus:outline-none focus:border-indigo-400">
+      <label class="block text-sm text-gray-600 mb-1">難易度</label>
+      <select id="create-difficulty" class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 mb-4">
+        <option value="easy">初級</option>
+        <option value="medium" selected>中級</option>
+        <option value="hard">上級</option>
+      </select>
+      <button onclick="saveCustomQuestion()" class="w-full py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700">💾 保存する</button>
+      <div id="create-feedback" class="text-sm text-center mt-2 h-5"></div>
+    </div>
+
+    <div class="mt-4 bg-white rounded-2xl shadow-lg p-4">
+      <h3 class="font-semibold text-gray-700 mb-2">保存済みカスタム問題</h3>
+      <div id="custom-list" class="text-sm text-gray-600 space-y-1 max-h-48 overflow-y-auto"></div>
+    </div>
+  </div>
+
+  <!-- SCORE TAB -->
+  <div id="pane-score" class="hidden fade-in">
+    <div id="score-report" class="bg-white rounded-2xl shadow-lg p-6 text-center">
+      <div class="text-5xl mb-3">📊</div>
+      <h2 class="text-xl font-bold text-gray-700 mb-4">スコアレポート</h2>
+      <div id="score-details" class="text-gray-600"></div>
+      <button onclick="showTab('quiz'); startQuiz()" class="mt-5 px-6 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700">もう一度挑戦！</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BUILTIN_QUESTIONS = [
+  { emojis:'🌊🏄', answer:'サーファー', hint:'海のスポーツ', difficulty:'easy' },
+  { emojis:'🍎📚', answer:'勉強', hint:'学ぶこと', difficulty:'easy' },
+  { emojis:'🌸🗻', answer:'富士山', hint:'日本の象徴', difficulty:'easy' },
+  { emojis:'🎵🎤', answer:'カラオケ', hint:'歌うこと', difficulty:'easy' },
+  { emojis:'🌙💤', answer:'おやすみ', hint:'夜の挨拶', difficulty:'easy' },
+  { emojis:'🍜🍳', answer:'料理', hint:'食べ物を作る', difficulty:'easy' },
+  { emojis:'🚗💨', answer:'ドライブ', hint:'車で走る', difficulty:'easy' },
+  { emojis:'📸🗺️', answer:'旅行', hint:'写真を撮る旅', difficulty:'easy' },
+  { emojis:'🏃💨🏁', answer:'マラソン', hint:'長距離走', difficulty:'medium' },
+  { emojis:'🌿🍵', answer:'抹茶', hint:'日本茶', difficulty:'medium' },
+  { emojis:'🦁👑', answer:'百獣の王', hint:'動物の王様', difficulty:'medium' },
+  { emojis:'🌧️☂️', answer:'梅雨', hint:'雨の季節', difficulty:'medium' },
+  { emojis:'🍚🍣', answer:'和食', hint:'日本の食文化', difficulty:'medium' },
+  { emojis:'🕐⏰', answer:'目覚め', hint:'時間を知らせる', difficulty:'medium' },
+  { emojis:'🏔️⛷️', answer:'スキー場', hint:'雪山のスポーツ', difficulty:'medium' },
+  { emojis:'🦋🌺', answer:'花粉症', hint:'春の悩み', difficulty:'medium' },
+  { emojis:'🌙🐺', answer:'狼男', hint:'変身する怪物', difficulty:'medium' },
+  { emojis:'🎃👻🕷️', answer:'ハロウィン', hint:'10月31日の行事', difficulty:'medium' },
+  { emojis:'🏯⚔️', answer:'侍', hint:'日本の武士', difficulty:'hard' },
+  { emojis:'🌀🔮', answer:'タイムトラベル', hint:'時間を越える', difficulty:'hard' },
+  { emojis:'🦑💧', answer:'墨汁', hint:'イカの防衛手段', difficulty:'hard' },
+  { emojis:'🌸💨', answer:'花吹雪', hint:'散る桜', difficulty:'hard' },
+  { emojis:'🐸🌧️', answer:'梅雨入り', hint:'雨季の始まり', difficulty:'hard' },
+  { emojis:'🗡️🌹', answer:'薔薇騎士', hint:'騎士道的な象徴', difficulty:'hard' },
+  { emojis:'🏮🎆', answer:'お盆', hint:'先祖を迎える行事', difficulty:'hard' },
+  { emojis:'🦅🗽', answer:'アメリカ', hint:'自由の国', difficulty:'easy' },
+  { emojis:'🌙⭐🕌', answer:'イスラム教', hint:'宗教のシンボル', difficulty:'hard' },
+  { emojis:'🎋📜', answer:'七夕', hint:'短冊に願い', difficulty:'medium' },
+  { emojis:'🍡🌸', answer:'花見', hint:'春のお花見', difficulty:'easy' },
+  { emojis:'🐉🔥', answer:'ドラゴン', hint:'炎を吐く怪獣', difficulty:'easy' },
+];
+
+let questions = [];
+let currentQ = 0;
+let scores = { correct: 0, wrong: 0, skip: 0 };
+let currentDifficulty = 'all';
+let hintUsed = false;
+let sessionResults = [];
+
+function loadCustomQuestions() {
+  try { return JSON.parse(localStorage.getItem('emojiQuizCustom') || '[]'); } catch { return []; }
+}
+function saveCustomQuestionsToStorage(arr) {
+  localStorage.setItem('emojiQuizCustom', JSON.stringify(arr));
+}
+
+function getAllQuestions() {
+  return [...BUILTIN_QUESTIONS, ...loadCustomQuestions()];
+}
+
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function setDifficulty(diff) {
+  currentDifficulty = diff;
+  ['easy','medium','hard','all'].forEach(d => {
+    const btn = document.getElementById('diff-' + d);
+    if (btn) btn.classList.toggle('ring-2', d === diff);
+    if (btn) btn.classList.toggle('ring-indigo-400', d === diff);
+  });
+  startQuiz();
+}
+
+function startQuiz() {
+  let pool = getAllQuestions();
+  if (currentDifficulty !== 'all') pool = pool.filter(q => q.difficulty === currentDifficulty);
+  questions = shuffleArray(pool);
+  currentQ = 0;
+  scores = { correct: 0, wrong: 0, skip: 0 };
+  sessionResults = [];
+  updateScoreDisplay();
+  showQuestion();
+}
+
+function showQuestion() {
+  if (currentQ >= questions.length) {
+    showResults();
+    return;
+  }
+  hintUsed = false;
+  const q = questions[currentQ];
+  document.getElementById('quiz-num').textContent = `問題 ${currentQ + 1} / ${questions.length}`;
+
+  const badge = document.getElementById('quiz-difficulty-badge');
+  const labels = { easy: '初級 🟢', medium: '中級 🟡', hard: '上級 🔴' };
+  badge.textContent = labels[q.difficulty] || '';
+
+  document.getElementById('quiz-emojis').textContent = q.emojis;
+  document.getElementById('quiz-hint-area').textContent = '';
+  document.getElementById('quiz-feedback').textContent = '';
+  const input = document.getElementById('quiz-input');
+  input.value = '';
+  input.focus();
+}
+
+function showHint() {
+  if (currentQ >= questions.length) return;
+  const q = questions[currentQ];
+  hintUsed = true;
+  const hint = q.hint || (q.answer.length > 1 ? q.answer[0] + '...' : '？');
+  document.getElementById('quiz-hint-area').textContent = '💡 ' + hint;
+}
+
+function submitAnswer() {
+  if (currentQ >= questions.length) return;
+  const q = questions[currentQ];
+  const input = document.getElementById('quiz-input');
+  const userAnswer = input.value.trim();
+  if (!userAnswer) return;
+
+  const correct = userAnswer === q.answer || userAnswer.replace(/\s/g,'') === q.answer.replace(/\s/g,'');
+  const feedbackEl = document.getElementById('quiz-feedback');
+  const card = document.getElementById('quiz-card');
+
+  if (correct) {
+    scores.correct++;
+    feedbackEl.className = 'text-sm font-semibold h-6 text-green-600';
+    feedbackEl.textContent = '✅ 正解！ ' + q.answer;
+    card.classList.add('correct-flash');
+    setTimeout(() => card.classList.remove('correct-flash'), 500);
+  } else {
+    scores.wrong++;
+    feedbackEl.className = 'text-sm font-semibold h-6 text-red-500';
+    feedbackEl.textContent = `❌ 不正解。正解: 「${q.answer}」`;
+    card.classList.add('wrong-flash');
+    setTimeout(() => card.classList.remove('wrong-flash'), 500);
+  }
+
+  sessionResults.push({ q, userAnswer, correct, hintUsed });
+  updateScoreDisplay();
+  currentQ++;
+  setTimeout(showQuestion, 1200);
+}
+
+function skipQuestion() {
+  if (currentQ >= questions.length) return;
+  scores.skip++;
+  sessionResults.push({ q: questions[currentQ], userAnswer: null, correct: false, hintUsed });
+  updateScoreDisplay();
+  currentQ++;
+  showQuestion();
+}
+
+function updateScoreDisplay() {
+  document.getElementById('score-correct').textContent = scores.correct;
+  document.getElementById('score-wrong').textContent = scores.wrong;
+  document.getElementById('score-skip').textContent = scores.skip;
+}
+
+function showResults() {
+  showTab('score');
+  const total = sessionResults.length;
+  const correct = scores.correct;
+  const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+  let grade = pct >= 90 ? '🏆 優秀！' : pct >= 70 ? '🌟 良い！' : pct >= 50 ? '👍 まずまず' : '📖 要復習';
+  const details = document.getElementById('score-details');
+  details.innerHTML = '';
+
+  const lines = [
+    `総問題数: ${total}問`,
+    `正解: ${correct}問（${pct}%）`,
+    `不正解: ${scores.wrong}問`,
+    `スキップ: ${scores.skip}問`,
+    `評価: ${grade}`
+  ];
+  lines.forEach(text => {
+    const p = document.createElement('p');
+    p.className = 'text-lg mb-1';
+    p.textContent = text;
+    details.appendChild(p);
+  });
+}
+
+function showTab(tab) {
+  ['quiz','create','score'].forEach(t => {
+    const pane = document.getElementById('pane-' + t);
+    const tabBtn = document.getElementById('tab-' + t);
+    if (pane) pane.classList.toggle('hidden', t !== tab);
+    if (tabBtn) {
+      tabBtn.classList.toggle('tab-active', t === tab);
+      tabBtn.classList.toggle('text-gray-500', t !== tab);
+    }
+  });
+  if (tab === 'create') renderCustomList();
+}
+
+function saveCustomQuestion() {
+  const emojiInput = document.getElementById('create-emojis');
+  const answerInput = document.getElementById('create-answer');
+  const difficultyEl = document.getElementById('create-difficulty');
+  const feedback = document.getElementById('create-feedback');
+
+  const emojis = emojiInput.value.trim();
+  const answer = answerInput.value.trim();
+  const difficulty = difficultyEl.value;
+
+  if (!emojis || !answer) {
+    feedback.className = 'text-sm text-center mt-2 h-5 text-red-500';
+    feedback.textContent = '絵文字と答えを両方入力してください';
+    return;
+  }
+
+  const custom = loadCustomQuestions();
+  custom.push({ emojis, answer, hint: answer[0] + '...', difficulty, custom: true });
+  saveCustomQuestionsToStorage(custom);
+
+  emojiInput.value = '';
+  answerInput.value = '';
+  feedback.className = 'text-sm text-center mt-2 h-5 text-green-600';
+  feedback.textContent = '✅ 保存しました！';
+  setTimeout(() => { feedback.textContent = ''; }, 2000);
+  renderCustomList();
+}
+
+function renderCustomList() {
+  const list = document.getElementById('custom-list');
+  list.innerHTML = '';
+  const custom = loadCustomQuestions();
+  if (custom.length === 0) {
+    const p = document.createElement('p');
+    p.className = 'text-gray-400 text-sm';
+    p.textContent = 'まだカスタム問題がありません';
+    list.appendChild(p);
+    return;
+  }
+  custom.forEach((q, i) => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between bg-gray-50 rounded px-2 py-1';
+
+    const info = document.createElement('span');
+    info.textContent = q.emojis + ' → ' + q.answer;
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'text-red-400 text-xs hover:text-red-600 ml-2';
+    delBtn.textContent = '削除';
+    delBtn.addEventListener('click', () => {
+      const arr = loadCustomQuestions();
+      arr.splice(i, 1);
+      saveCustomQuestionsToStorage(arr);
+      renderCustomList();
+    });
+
+    row.appendChild(info);
+    row.appendChild(delBtn);
+    list.appendChild(row);
+  });
+}
+
+// Init
+startQuiz();
+</script>
+</body>
+</html>
